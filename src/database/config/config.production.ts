@@ -1,18 +1,20 @@
-/* eslint-disable prettier/prettier */
-import * as dotenv from 'dotenv';
-import type { Dialect } from 'sequelize';
-
-dotenv.config({ path: '.env' });
+import { Dialect } from 'sequelize';
 
 export const config_prod = {
   database: {
     dialect: 'postgres' as Dialect,
-    // Yahan hum poori URL use karenge jo Render se aa rahi hai
+    // Agar DATABASE_URL hai toh wahi use karega (Render ke liye)
     url: process.env.DATABASE_URL,
+    // Agar URL nahi hai toh niche wale settings kaam aayenge
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT),
+    username: process.env.DB_USERNAME,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_DATABASE,
     dialectOptions: {
       ssl: {
         require: true,
-        rejectUnauthorized: false, // Cloud DB (Supabase) ke liye ye zaroori hai
+        rejectUnauthorized: false,
       },
     },
   },
