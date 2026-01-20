@@ -3,7 +3,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { HttpException, ValidationPipe } from '@nestjs/common';
-import { Files } from './shared/file/file';
+
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -17,7 +17,7 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
-  Files(app);
+
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,

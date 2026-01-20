@@ -10,8 +10,8 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ErrorMessageService } from 'src/shared/services/errormessage.service';
-import { SuccessResponseDto } from 'src/shared/dto/successResponse.dto';
+import { ErrorMessageService } from '../../common/services/errormessage.service';
+
 import { UserRequestDto } from '../dto/userRequest.dto';
 import { UserService } from '../service/user.service';
 import { JwtAuthGuard } from 'src/JwtAuthGuard/jwt_auth.guard';
@@ -23,13 +23,13 @@ export class UserController {
   constructor(
     private readonly userService: UserService,
     private readonly errorMessageService: ErrorMessageService,
-  ) {}
+  ) { }
 
   @Public()
   @Post()
   async createUser(
     @Body() requestDto: UserRequestDto,
-  ): Promise<SuccessResponseDto> {
+  ): Promise<any> {
     try {
       const user = await this.userService.createUser(requestDto);
       return this.errorMessageService.success(
@@ -64,7 +64,7 @@ export class UserController {
   async updateUser(
     @Param('id') id: string,
     @Body() requestDto: UserPutRequestDto,
-  ): Promise<SuccessResponseDto> {
+  ): Promise<any> {
     try {
       const user = await this.userService.updateUser(id, requestDto);
       return this.errorMessageService.success(
@@ -80,7 +80,7 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  async getUser(@Param('id') id: string): Promise<SuccessResponseDto> {
+  async getUser(@Param('id') id: string): Promise<any> {
     try {
       const user = await this.userService.getUser(id);
       return this.errorMessageService.success(
@@ -98,7 +98,7 @@ export class UserController {
   @Get('email/:email')
   async getUserByEmail(
     @Param('email') email: string,
-  ): Promise<SuccessResponseDto> {
+  ): Promise<any> {
     try {
       const user = await this.userService.getUserByEmail(email);
       return this.errorMessageService.success(
@@ -116,7 +116,7 @@ export class UserController {
   @Get('search/by-name/:name')
   async getUsersByName(
     @Param('name') name: string,
-  ): Promise<SuccessResponseDto> {
+  ): Promise<any> {
     try {
       const users = await this.userService.getUsersByName(name);
       return this.errorMessageService.success(
@@ -135,7 +135,7 @@ export class UserController {
   async getUsersByEmailOrName(
     @Query('email') email?: string,
     @Query('name') name?: string,
-  ): Promise<SuccessResponseDto> {
+  ): Promise<any> {
     try {
       const users = await this.userService.getUsersByEmailOrName(email, name);
       return this.errorMessageService.success(
@@ -181,7 +181,7 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  async deleteUser(@Param('id') id: string): Promise<SuccessResponseDto> {
+  async deleteUser(@Param('id') id: string): Promise<any> {
     try {
       const result = await this.userService.deleteUser(id);
       return this.errorMessageService.success(
@@ -201,7 +201,7 @@ export class UserController {
     @Query('email') email?: string,
     @Query('name') name?: string,
     @Query('mobile') mobile?: string,
-  ): Promise<SuccessResponseDto> {
+  ): Promise<any> {
     try {
       const users = await this.userService.searchUsers({ email, name, mobile });
       return this.errorMessageService.success(

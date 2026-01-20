@@ -15,6 +15,7 @@ class UserDto {
     constructor(data) {
         data = data.dataValues ? data.dataValues : data;
         this.id = data.id;
+        this.mobile = data.mobile;
         this.name = data.name;
         this.email = data.email;
         const createdAt = data.createdAt

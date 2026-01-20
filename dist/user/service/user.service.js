@@ -47,7 +47,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UserService = void 0;
 const common_1 = require("@nestjs/common");
-const errormessage_service_1 = require("../../shared/services/errormessage.service");
+const errormessage_service_1 = require("../../common/services/errormessage.service");
 const sequelize_1 = require("sequelize");
 const user_dto_1 = require("../dto/user.dto");
 const bcrypt = __importStar(require("bcrypt"));

@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: omen
+    env: docker
+    dockerfilePath: Dockerfile
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
