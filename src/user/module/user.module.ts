@@ -3,7 +3,7 @@
 import { Module } from '@nestjs/common';
 
 import { JwtModule } from '@nestjs/jwt';
-import { ErrorMessageService } from 'src/shared/services/errormessage.service';
+import { ErrorMessageService } from '../../common/services/errormessage.service';
 import { JwtAuthGuard } from 'src/JwtAuthGuard/jwt_auth.guard';
 
 import { UserProvider } from '../provider/user.provider';
@@ -21,4 +21,4 @@ import { UserController } from '../controller/user.controller';
   providers: [...UserProvider, UserService, ErrorMessageService, JwtAuthGuard],
   exports: [UserService],
 })
-export class UserModule {}
+export class UserModule { }

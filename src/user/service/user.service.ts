@@ -1,7 +1,6 @@
 /* eslint-disable prettier/prettier */
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
-import { ErrorMessageService } from 'src/shared/services/errormessage.service';
-import moment from 'moment';
+import { ErrorMessageService } from '../../common/services/errormessage.service';
 import { Op, Sequelize, Transaction } from 'sequelize';
 import { User } from '../entity/user.entity';
 import { UserRequestDto } from '../dto/userRequest.dto';
@@ -19,7 +18,7 @@ export class UserService {
     private readonly sequelize: Sequelize,
     private readonly errorMessageService: ErrorMessageService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
   async createUser(requestDto: UserRequestDto) {
     const transaction = await this.sequelize.transaction({
@@ -75,7 +74,7 @@ export class UserService {
       return new UserDto(user);
     } catch (error) {
       if (status == false) {
-        await transaction.rollback().catch(() => {});
+        await transaction.rollback().catch(() => { });
       }
       throw this.errorMessageService.CatchHandler(error);
     }
@@ -126,7 +125,7 @@ export class UserService {
       };
     } catch (error) {
       if (status == false) {
-        await transaction.rollback().catch(() => {});
+        await transaction.rollback().catch(() => { });
       }
       throw this.errorMessageService.CatchHandler(error);
     }
@@ -222,7 +221,7 @@ export class UserService {
       return new UserDto(updatedUser);
     } catch (error) {
       if (status === false) {
-        await transaction.rollback().catch(() => {});
+        await transaction.rollback().catch(() => { });
       }
       throw this.errorMessageService.CatchHandler(error);
     }
@@ -373,7 +372,7 @@ export class UserService {
       return { message: 'User deleted successfully' };
     } catch (error) {
       if (status == false) {
-        await transaction.rollback().catch(() => {});
+        await transaction.rollback().catch(() => { });
       }
       throw this.errorMessageService.CatchHandler(error);
     }

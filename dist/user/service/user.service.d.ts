@@ -1,4 +1,4 @@
-import { ErrorMessageService } from 'src/shared/services/errormessage.service';
+import { ErrorMessageService } from '../../common/services/errormessage.service';
 import { Sequelize } from 'sequelize';
 import { User } from '../entity/user.entity';
 import { UserRequestDto } from '../dto/userRequest.dto';

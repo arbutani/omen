@@ -9,7 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UserModule = void 0;
 const common_1 = require("@nestjs/common");
 const jwt_1 = require("@nestjs/jwt");
-const errormessage_service_1 = require("../../shared/services/errormessage.service");
+const errormessage_service_1 = require("../../common/services/errormessage.service");
 const jwt_auth_guard_1 = require("../../JwtAuthGuard/jwt_auth.guard");
 const user_provider_1 = require("../provider/user.provider");
 const user_service_1 = require("../service/user.service");

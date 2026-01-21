@@ -45,7 +45,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ErrorMessageService = void 0;
 const common_1 = require("@nestjs/common");
 const dotenv = __importStar(require("dotenv"));
-const successResponse_dto_1 = require("../dto/successResponse.dto");
 dotenv.config({ path: '.env' });
 let ErrorMessageService = class ErrorMessageService {
     constructor() { }
@@ -56,14 +55,27 @@ let ErrorMessageService = class ErrorMessageService {
     };
     success = (data, status = false, msg, options = {}) => {
         const getMessage = msg;
-        return new successResponse_dto_1.SuccessResponseDto(status, getMessage.toString(), data);
+        return {
+            status,
+            message: getMessage.toString(),
+            data,
+        };
     };
     successWithErrorMessage = (data, status = false, msg, options = {}, errorMessage = '') => {
         const getMessage = msg;
-        return new successResponse_dto_1.SuccessResponseDto(status, getMessage.toString(), data, errorMessage);
+        return {
+            status,
+            message: getMessage.toString(),
+            data,
+            error: errorMessage,
+        };
     };
     successCore = (data, status = false, msg) => {
-        return new successResponse_dto_1.SuccessResponseDto(status, msg, data);
+        return {
+            status,
+            message: msg,
+            data,
+        };
     };
     error = (err) => {
         return new common_1.HttpException({
