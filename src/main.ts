@@ -3,18 +3,16 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { HttpException, ValidationPipe } from '@nestjs/common';
+<<<<<<< HEAD
 
+=======
+>>>>>>> 3ad2a934053675a36337477b958a0c64b7c726a0
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({
-    origin: [
-      'http://localhost',
-      'http://127.0.0.1:5501',
-      'http://localhost:3000',
-    ],
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    origin: true,
     credentials: true,
   });
 
@@ -39,6 +37,7 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(process.env.PORT ?? 3003);
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
 }
 bootstrap();

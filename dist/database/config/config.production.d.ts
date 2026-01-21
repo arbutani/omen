@@ -1,11 +1,18 @@
-import type { Dialect } from "sequelize";
+import { Dialect } from 'sequelize';
 export declare const config_prod: {
     database: {
         dialect: Dialect;
-        host: string;
+        url: string | undefined;
+        host: string | undefined;
         port: number;
-        username: string;
-        password: string;
-        database: string;
+        username: string | undefined;
+        password: string | undefined;
+        database: string | undefined;
+        dialectOptions: {
+            ssl: {
+                require: boolean;
+                rejectUnauthorized: boolean;
+            };
+        };
     };
 };

@@ -37,16 +37,28 @@ exports.databaseProviders = void 0;
 const sequelize_typescript_1 = require("sequelize-typescript");
 const tablesList_1 = require("../tablesList");
 const config_develpoment_1 = require("../config/config.develpoment");
-const dotenv = __importStar(require("dotenv"));
 const config_production_1 = require("../config/config.production");
+const dotenv = __importStar(require("dotenv"));
 dotenv.config({ path: '.env', quiet: true });
-const environment = process.env.TYPE ?? 'local';
+const environment = process.env.NODE_ENV || 'development';
 exports.databaseProviders = [
     {
         provide: 'SEQUELIZE',
-        useFactory: () => {
-            const sequelize = new sequelize_typescript_1.Sequelize(environment == 'local' ? config_develpoment_1.config_dev.database : config_production_1.config_prod.database);
+        useFactory: async () => {
+            let sequelize;
+            if (process.env.DATABASE_URL) {
+                sequelize = new sequelize_typescript_1.Sequelize(process.env.DATABASE_URL, {
+                    dialect: 'postgres',
+                    protocol: 'postgres',
+                    dialectOptions: config_production_1.config_prod.database.dialectOptions,
+                    logging: false,
+                });
+            }
+            else {
+                sequelize = new sequelize_typescript_1.Sequelize(config_develpoment_1.config_dev.database);
+            }
             sequelize.addModels([...tablesList_1.TableList]);
+            await sequelize.authenticate();
             return sequelize;
         },
     },
