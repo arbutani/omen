@@ -3,10 +3,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { HttpException, ValidationPipe } from '@nestjs/common';
-<<<<<<< HEAD
-
-=======
->>>>>>> 3ad2a934053675a36337477b958a0c64b7c726a0
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
