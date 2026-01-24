@@ -11,7 +11,9 @@ export declare class UserService {
     private readonly sequelize;
     private readonly errorMessageService;
     private readonly jwtService;
+    private readonly GOOGLE_CLIENT_ID;
     constructor(userRepository: typeof User, sequelize: Sequelize, errorMessageService: ErrorMessageService, jwtService: JwtService);
+    verifyGoogleToken(token: string): Promise<any>;
     createUser(requestDto: UserRequestDto): Promise<UserDto>;
     login(email: string, password: string): Promise<{
         access_token: string;
@@ -20,6 +22,7 @@ export declare class UserService {
     oauthLogin(oauthDto: UserOauthRequestDto): Promise<{
         access_token: string;
         user: UserDto;
+        message: string;
     }>;
     updateUser(id: string, requestDto: UserPutRequestDto): Promise<UserDto>;
     getUser(id: string): Promise<UserDto>;

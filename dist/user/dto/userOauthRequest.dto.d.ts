@@ -4,4 +4,5 @@ export declare class UserOauthRequestDto {
     name?: string;
     email?: string;
     mobile?: string;
+    token: string;
 }

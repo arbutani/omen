@@ -9,9 +9,14 @@ import { UserOauthRequestDto } from '../dto/userOauthRequest.dto';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { UserPutRequestDto } from '../dto/userPutRequest.dto';
+import axios from 'axios';
 
 @Injectable()
 export class UserService {
+  // Google Client ID - Expo Web Client
+  private readonly GOOGLE_CLIENT_ID =
+    '963430831548-ms7rv6n43su0p2qfd2of5bdt2ghngb7a.apps.googleusercontent.com';
+
   constructor(
     @Inject('USER_REPOSITORY')
     private readonly userRepository: typeof User,
@@ -20,6 +25,61 @@ export class UserService {
     private readonly errorMessageService: ErrorMessageService,
     private readonly jwtService: JwtService,
   ) {}
+
+  // Helper method to verify Google token without library
+  async verifyGoogleToken(token: string): Promise<any> {
+    try {
+      // Method 1: Verify ID token
+      const tokenInfoResponse = await axios.get(
+        `https://oauth2.googleapis.com/tokeninfo?id_token=${token}`,
+      );
+
+      const tokenInfo = tokenInfoResponse.data;
+
+      // Verify audience (client ID)
+      if (tokenInfo.aud !== this.GOOGLE_CLIENT_ID) {
+        throw new UnauthorizedException('Invalid Google client ID');
+      }
+
+      // Check token expiry
+      const currentTime = Math.floor(Date.now() / 1000);
+      if (tokenInfo.exp && tokenInfo.exp < currentTime) {
+        throw new UnauthorizedException('Google token has expired');
+      }
+
+      return tokenInfo;
+    } catch (error) {
+      console.error(
+        'Google token verification failed:',
+        error.response?.data || error.message,
+      );
+
+      // Alternative method: Verify access token
+      try {
+        const userInfoResponse = await axios.get(
+          'https://www.googleapis.com/oauth2/v1/userinfo',
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+
+        return {
+          email: userInfoResponse.data.email,
+          name: userInfoResponse.data.name,
+          sub: userInfoResponse.data.id,
+          verified: true,
+        };
+      } catch (secondError) {
+        console.error(
+          'Alternative verification also failed:',
+          secondError.message,
+        );
+        throw new UnauthorizedException(
+          'Invalid Google token. Please try again.',
+        );
+      }
+    }
+  }
 
   async createUser(requestDto: UserRequestDto) {
     const transaction = await this.sequelize.transaction({
@@ -139,32 +199,86 @@ export class UserService {
     let status = false;
 
     try {
+      console.log('OAuth Login Request:', {
+        provider: oauthDto.provider,
+        email: oauthDto.email,
+        hasToken: !!oauthDto.token,
+      });
+
+      // ✅ IMPORTANT: Verify Google token if provider is google
+      if (oauthDto.provider === 'google' && oauthDto.token) {
+        console.log('Verifying Google token...');
+
+        try {
+          const verifiedData = await this.verifyGoogleToken(oauthDto.token);
+          console.log('Google Token Verified:', {
+            email: verifiedData.email,
+            googleId: verifiedData.sub,
+            name: verifiedData.name,
+          });
+
+          // Override with verified data
+          oauthDto.email = verifiedData.email;
+          oauthDto.providerId = verifiedData.sub;
+
+          // Use verified name if available
+          if (verifiedData.name && !oauthDto.name) {
+            oauthDto.name = verifiedData.name;
+          }
+        } catch (googleError) {
+          console.error(
+            'Google token verification failed:',
+            googleError.message,
+          );
+          throw new UnauthorizedException(
+            'Invalid Google token: ' + googleError.message,
+          );
+        }
+      }
+
       const provider = oauthDto.provider;
       const providerId = oauthDto.providerId;
       const email = oauthDto.email ? oauthDto.email.trim().toLowerCase() : null;
+      const name = oauthDto.name || 'Google User';
+
+      console.log('Processing OAuth for:', {
+        provider,
+        providerId,
+        email,
+        name,
+      });
 
       let user = null as any;
 
+      // First, try to find user by provider + providerId
       if (provider && providerId) {
         user = await this.userRepository.findOne({
           where: { provider, providerId },
           transaction,
         });
+        console.log('User found by provider:', user ? 'Yes' : 'No');
       }
 
+      // If not found, try by email
       if (!user && email) {
         user = await this.userRepository.findOne({
           where: { email },
           transaction,
         });
+        console.log('User found by email:', user ? 'Yes' : 'No');
       }
 
       if (user) {
+        console.log('Existing user found:', user.email);
+
+        // Update user with OAuth info if missing
         const needsUpdate: any = {};
         if (!user.provider && provider) needsUpdate.provider = provider;
         if (!user.providerId && providerId) needsUpdate.providerId = providerId;
+        if (!user.name && name) needsUpdate.name = name;
 
         if (Object.keys(needsUpdate).length > 0) {
+          console.log('Updating user with:', needsUpdate);
           await this.userRepository.update(needsUpdate, {
             where: { id: user.id },
             transaction,
@@ -172,51 +286,68 @@ export class UserService {
           user = await this.userRepository.findByPk(user.id, { transaction });
         }
       } else {
+        console.log('Creating new OAuth user with email:', email);
+
+        // Create new user
         const newUser = await this.userRepository.create(
           {
-            name: oauthDto.name || '',
+            name: name,
             mobile: oauthDto.mobile || '',
             email: email || '',
             password: null,
             provider: provider || null,
             providerId: providerId || null,
+            isEmailVerified: provider === 'google' ? true : false,
           } as any,
           { transaction },
         );
 
         if (!newUser) {
           throw this.errorMessageService.GeneralErrorCore(
-            'Unable to create user from oauth data',
+            'Unable to create user from OAuth data',
             500,
           );
         }
 
         user = newUser;
+        console.log('New user created:', user.id);
       }
 
+      // Generate JWT token
       const payload = {
         sub: user.id,
         email: user.email,
         name: user.name,
         mobile: user.mobile,
+        provider: user.provider,
       };
 
       const token = await this.jwtService.signAsync(payload, {
         secret: process.env.JWT_SECRET || 'MY_SECRET_KEY',
-        expiresIn: process.env.JWT_EXPIRES_IN || '3h',
+        expiresIn: process.env.JWT_EXPIRES_IN || '7d',
       } as any);
 
       await transaction.commit();
       status = true;
 
+      console.log('OAuth login successful for user:', user.email);
+
       return {
         access_token: token,
         user: new UserDto(user),
+        message: 'Login successful',
       };
     } catch (error) {
+      console.error('OAuth login error:', error.message);
       if (status == false) {
         await transaction.rollback().catch(() => {});
       }
+
+      // Return proper error message
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+
       throw this.errorMessageService.CatchHandler(error);
     }
   }

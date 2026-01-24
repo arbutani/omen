@@ -44,6 +44,9 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UserService = void 0;
 const common_1 = require("@nestjs/common");
@@ -52,16 +55,50 @@ const sequelize_1 = require("sequelize");
 const user_dto_1 = require("../dto/user.dto");
 const bcrypt = __importStar(require("bcrypt"));
 const jwt_1 = require("@nestjs/jwt");
+const axios_1 = __importDefault(require("axios"));
 let UserService = class UserService {
     userRepository;
     sequelize;
     errorMessageService;
     jwtService;
+    GOOGLE_CLIENT_ID = '963430831548-ms7rv6n43su0p2qfd2of5bdt2ghngb7a.apps.googleusercontent.com';
     constructor(userRepository, sequelize, errorMessageService, jwtService) {
         this.userRepository = userRepository;
         this.sequelize = sequelize;
         this.errorMessageService = errorMessageService;
         this.jwtService = jwtService;
+    }
+    async verifyGoogleToken(token) {
+        try {
+            const tokenInfoResponse = await axios_1.default.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${token}`);
+            const tokenInfo = tokenInfoResponse.data;
+            if (tokenInfo.aud !== this.GOOGLE_CLIENT_ID) {
+                throw new common_1.UnauthorizedException('Invalid Google client ID');
+            }
+            const currentTime = Math.floor(Date.now() / 1000);
+            if (tokenInfo.exp && tokenInfo.exp < currentTime) {
+                throw new common_1.UnauthorizedException('Google token has expired');
+            }
+            return tokenInfo;
+        }
+        catch (error) {
+            console.error('Google token verification failed:', error.response?.data || error.message);
+            try {
+                const userInfoResponse = await axios_1.default.get('https://www.googleapis.com/oauth2/v1/userinfo', {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                return {
+                    email: userInfoResponse.data.email,
+                    name: userInfoResponse.data.name,
+                    sub: userInfoResponse.data.id,
+                    verified: true,
+                };
+            }
+            catch (secondError) {
+                console.error('Alternative verification also failed:', secondError.message);
+                throw new common_1.UnauthorizedException('Invalid Google token. Please try again.');
+            }
+        }
     }
     async createUser(requestDto) {
         const transaction = await this.sequelize.transaction({
@@ -156,29 +193,67 @@ let UserService = class UserService {
         });
         let status = false;
         try {
+            console.log('OAuth Login Request:', {
+                provider: oauthDto.provider,
+                email: oauthDto.email,
+                hasToken: !!oauthDto.token,
+            });
+            if (oauthDto.provider === 'google' && oauthDto.token) {
+                console.log('Verifying Google token...');
+                try {
+                    const verifiedData = await this.verifyGoogleToken(oauthDto.token);
+                    console.log('Google Token Verified:', {
+                        email: verifiedData.email,
+                        googleId: verifiedData.sub,
+                        name: verifiedData.name,
+                    });
+                    oauthDto.email = verifiedData.email;
+                    oauthDto.providerId = verifiedData.sub;
+                    if (verifiedData.name && !oauthDto.name) {
+                        oauthDto.name = verifiedData.name;
+                    }
+                }
+                catch (googleError) {
+                    console.error('Google token verification failed:', googleError.message);
+                    throw new common_1.UnauthorizedException('Invalid Google token: ' + googleError.message);
+                }
+            }
             const provider = oauthDto.provider;
             const providerId = oauthDto.providerId;
             const email = oauthDto.email ? oauthDto.email.trim().toLowerCase() : null;
+            const name = oauthDto.name || 'Google User';
+            console.log('Processing OAuth for:', {
+                provider,
+                providerId,
+                email,
+                name,
+            });
             let user = null;
             if (provider && providerId) {
                 user = await this.userRepository.findOne({
                     where: { provider, providerId },
                     transaction,
                 });
+                console.log('User found by provider:', user ? 'Yes' : 'No');
             }
             if (!user && email) {
                 user = await this.userRepository.findOne({
                     where: { email },
                     transaction,
                 });
+                console.log('User found by email:', user ? 'Yes' : 'No');
             }
             if (user) {
+                console.log('Existing user found:', user.email);
                 const needsUpdate = {};
                 if (!user.provider && provider)
                     needsUpdate.provider = provider;
                 if (!user.providerId && providerId)
                     needsUpdate.providerId = providerId;
+                if (!user.name && name)
+                    needsUpdate.name = name;
                 if (Object.keys(needsUpdate).length > 0) {
+                    console.log('Updating user with:', needsUpdate);
                     await this.userRepository.update(needsUpdate, {
                         where: { id: user.id },
                         transaction,
@@ -187,39 +262,49 @@ let UserService = class UserService {
                 }
             }
             else {
+                console.log('Creating new OAuth user with email:', email);
                 const newUser = await this.userRepository.create({
-                    name: oauthDto.name || '',
+                    name: name,
                     mobile: oauthDto.mobile || '',
                     email: email || '',
                     password: null,
                     provider: provider || null,
                     providerId: providerId || null,
+                    isEmailVerified: provider === 'google' ? true : false,
                 }, { transaction });
                 if (!newUser) {
-                    throw this.errorMessageService.GeneralErrorCore('Unable to create user from oauth data', 500);
+                    throw this.errorMessageService.GeneralErrorCore('Unable to create user from OAuth data', 500);
                 }
                 user = newUser;
+                console.log('New user created:', user.id);
             }
             const payload = {
                 sub: user.id,
                 email: user.email,
                 name: user.name,
                 mobile: user.mobile,
+                provider: user.provider,
             };
             const token = await this.jwtService.signAsync(payload, {
                 secret: process.env.JWT_SECRET || 'MY_SECRET_KEY',
-                expiresIn: process.env.JWT_EXPIRES_IN || '3h',
+                expiresIn: process.env.JWT_EXPIRES_IN || '7d',
             });
             await transaction.commit();
             status = true;
+            console.log('OAuth login successful for user:', user.email);
             return {
                 access_token: token,
                 user: new user_dto_1.UserDto(user),
+                message: 'Login successful',
             };
         }
         catch (error) {
+            console.error('OAuth login error:', error.message);
             if (status == false) {
                 await transaction.rollback().catch(() => { });
+            }
+            if (error instanceof common_1.UnauthorizedException) {
+                throw error;
             }
             throw this.errorMessageService.CatchHandler(error);
         }

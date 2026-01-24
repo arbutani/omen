@@ -21,4 +21,8 @@ export class UserOauthRequestDto {
   @IsOptional()
   @IsString()
   mobile?: string;
+
+  @IsNotEmpty()
+  @IsString()
+  token: string;
 }

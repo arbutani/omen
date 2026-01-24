@@ -17,6 +17,7 @@ class UserOauthRequestDto {
     name;
     email;
     mobile;
+    token;
 }
 exports.UserOauthRequestDto = UserOauthRequestDto;
 __decorate([
@@ -44,4 +45,9 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UserOauthRequestDto.prototype, "mobile", void 0);
+__decorate([
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UserOauthRequestDto.prototype, "token", void 0);
 //# sourceMappingURL=userOauthRequest.dto.js.map
