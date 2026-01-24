@@ -7,6 +7,8 @@ export class UserDto {
   name: string;
   mobile: string;
   email: string;
+  provider?: string;
+  providerId?: string;
   createdAt: string;
   updatedAt: string;
 
@@ -17,6 +19,8 @@ export class UserDto {
     this.mobile = data.mobile;
     this.name = data.name;
     this.email = data.email;
+    this.provider = data.provider;
+    this.providerId = data.providerId;
 
     const createdAt = data.createdAt
       ? data.createdAt

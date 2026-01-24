@@ -1,5 +1,6 @@
 import { ErrorMessageService } from '../../common/services/errormessage.service';
 import { UserRequestDto } from '../dto/userRequest.dto';
+import { UserOauthRequestDto } from '../dto/userOauthRequest.dto';
 import { UserService } from '../service/user.service';
 import { UserPutRequestDto } from '../dto/userPutRequest.dto';
 export declare class UserController {
@@ -11,6 +12,12 @@ export declare class UserController {
         email: string;
         password: string;
     }): Promise<{
+        status: boolean;
+        message: string;
+        data: any;
+        error?: string;
+    }>;
+    oauthLogin(body: UserOauthRequestDto): Promise<{
         status: boolean;
         message: string;
         data: any;

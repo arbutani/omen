@@ -3,6 +3,7 @@ import { Sequelize } from 'sequelize';
 import { User } from '../entity/user.entity';
 import { UserRequestDto } from '../dto/userRequest.dto';
 import { UserDto } from '../dto/user.dto';
+import { UserOauthRequestDto } from '../dto/userOauthRequest.dto';
 import { JwtService } from '@nestjs/jwt';
 import { UserPutRequestDto } from '../dto/userPutRequest.dto';
 export declare class UserService {
@@ -13,6 +14,10 @@ export declare class UserService {
     constructor(userRepository: typeof User, sequelize: Sequelize, errorMessageService: ErrorMessageService, jwtService: JwtService);
     createUser(requestDto: UserRequestDto): Promise<UserDto>;
     login(email: string, password: string): Promise<{
+        access_token: string;
+        user: UserDto;
+    }>;
+    oauthLogin(oauthDto: UserOauthRequestDto): Promise<{
         access_token: string;
         user: UserDto;
     }>;

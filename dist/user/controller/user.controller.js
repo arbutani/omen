@@ -16,6 +16,7 @@ exports.UserController = void 0;
 const common_1 = require("@nestjs/common");
 const errormessage_service_1 = require("../../common/services/errormessage.service");
 const userRequest_dto_1 = require("../dto/userRequest.dto");
+const userOauthRequest_dto_1 = require("../dto/userOauthRequest.dto");
 const user_service_1 = require("../service/user.service");
 const jwt_auth_guard_1 = require("../../JwtAuthGuard/jwt_auth.guard");
 const public_decorator_1 = require("../../JwtAuthGuard/public.decorator");
@@ -39,6 +40,15 @@ let UserController = class UserController {
     async login(body) {
         try {
             const result = await this.userService.login(body.email, body.password);
+            return this.errorMessageService.success(result, true, 'Login successful', {});
+        }
+        catch (error) {
+            throw this.errorMessageService.error(error);
+        }
+    }
+    async oauthLogin(body) {
+        try {
+            const result = await this.userService.oauthLogin(body);
             return this.errorMessageService.success(result, true, 'Login successful', {});
         }
         catch (error) {
@@ -142,6 +152,14 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], UserController.prototype, "login", null);
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Post)('oauth'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [userOauthRequest_dto_1.UserOauthRequestDto]),
+    __metadata("design:returntype", Promise)
+], UserController.prototype, "oauthLogin", null);
 __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Put)(':id'),

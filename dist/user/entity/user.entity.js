@@ -52,6 +52,21 @@ __decorate([
     __metadata("design:type", String)
 ], User.prototype, "password", void 0);
 __decorate([
+    (0, sequelize_typescript_1.Column)({
+        type: sequelize_typescript_1.DataType.STRING,
+        allowNull: true,
+    }),
+    __metadata("design:type", String)
+], User.prototype, "provider", void 0);
+__decorate([
+    (0, sequelize_typescript_1.Column)({
+        field: 'provider_id',
+        type: sequelize_typescript_1.DataType.STRING,
+        allowNull: true,
+    }),
+    __metadata("design:type", String)
+], User.prototype, "providerId", void 0);
+__decorate([
     sequelize_typescript_1.CreatedAt,
     (0, sequelize_typescript_1.Column)({
         field: 'created_at',

@@ -5,6 +5,7 @@ import { Op, Sequelize, Transaction } from 'sequelize';
 import { User } from '../entity/user.entity';
 import { UserRequestDto } from '../dto/userRequest.dto';
 import { UserDto } from '../dto/user.dto';
+import { UserOauthRequestDto } from '../dto/userOauthRequest.dto';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { UserPutRequestDto } from '../dto/userPutRequest.dto';
@@ -18,7 +19,7 @@ export class UserService {
     private readonly sequelize: Sequelize,
     private readonly errorMessageService: ErrorMessageService,
     private readonly jwtService: JwtService,
-  ) { }
+  ) {}
 
   async createUser(requestDto: UserRequestDto) {
     const transaction = await this.sequelize.transaction({
@@ -74,7 +75,7 @@ export class UserService {
       return new UserDto(user);
     } catch (error) {
       if (status == false) {
-        await transaction.rollback().catch(() => { });
+        await transaction.rollback().catch(() => {});
       }
       throw this.errorMessageService.CatchHandler(error);
     }
@@ -125,7 +126,96 @@ export class UserService {
       };
     } catch (error) {
       if (status == false) {
-        await transaction.rollback().catch(() => { });
+        await transaction.rollback().catch(() => {});
+      }
+      throw this.errorMessageService.CatchHandler(error);
+    }
+  }
+
+  async oauthLogin(oauthDto: UserOauthRequestDto) {
+    const transaction = await this.sequelize.transaction({
+      isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ,
+    });
+    let status = false;
+
+    try {
+      const provider = oauthDto.provider;
+      const providerId = oauthDto.providerId;
+      const email = oauthDto.email ? oauthDto.email.trim().toLowerCase() : null;
+
+      let user = null as any;
+
+      if (provider && providerId) {
+        user = await this.userRepository.findOne({
+          where: { provider, providerId },
+          transaction,
+        });
+      }
+
+      if (!user && email) {
+        user = await this.userRepository.findOne({
+          where: { email },
+          transaction,
+        });
+      }
+
+      if (user) {
+        const needsUpdate: any = {};
+        if (!user.provider && provider) needsUpdate.provider = provider;
+        if (!user.providerId && providerId) needsUpdate.providerId = providerId;
+
+        if (Object.keys(needsUpdate).length > 0) {
+          await this.userRepository.update(needsUpdate, {
+            where: { id: user.id },
+            transaction,
+          });
+          user = await this.userRepository.findByPk(user.id, { transaction });
+        }
+      } else {
+        const newUser = await this.userRepository.create(
+          {
+            name: oauthDto.name || '',
+            mobile: oauthDto.mobile || '',
+            email: email || '',
+            password: null,
+            provider: provider || null,
+            providerId: providerId || null,
+          } as any,
+          { transaction },
+        );
+
+        if (!newUser) {
+          throw this.errorMessageService.GeneralErrorCore(
+            'Unable to create user from oauth data',
+            500,
+          );
+        }
+
+        user = newUser;
+      }
+
+      const payload = {
+        sub: user.id,
+        email: user.email,
+        name: user.name,
+        mobile: user.mobile,
+      };
+
+      const token = await this.jwtService.signAsync(payload, {
+        secret: process.env.JWT_SECRET || 'MY_SECRET_KEY',
+        expiresIn: process.env.JWT_EXPIRES_IN || '3h',
+      } as any);
+
+      await transaction.commit();
+      status = true;
+
+      return {
+        access_token: token,
+        user: new UserDto(user),
+      };
+    } catch (error) {
+      if (status == false) {
+        await transaction.rollback().catch(() => {});
       }
       throw this.errorMessageService.CatchHandler(error);
     }
@@ -221,7 +311,7 @@ export class UserService {
       return new UserDto(updatedUser);
     } catch (error) {
       if (status === false) {
-        await transaction.rollback().catch(() => { });
+        await transaction.rollback().catch(() => {});
       }
       throw this.errorMessageService.CatchHandler(error);
     }
@@ -372,7 +462,7 @@ export class UserService {
       return { message: 'User deleted successfully' };
     } catch (error) {
       if (status == false) {
-        await transaction.rollback().catch(() => { });
+        await transaction.rollback().catch(() => {});
       }
       throw this.errorMessageService.CatchHandler(error);
     }

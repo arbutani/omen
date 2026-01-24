@@ -10,6 +10,8 @@ class UserDto {
     name;
     mobile;
     email;
+    provider;
+    providerId;
     createdAt;
     updatedAt;
     constructor(data) {
@@ -18,6 +20,8 @@ class UserDto {
         this.mobile = data.mobile;
         this.name = data.name;
         this.email = data.email;
+        this.provider = data.provider;
+        this.providerId = data.providerId;
         const createdAt = data.createdAt
             ? data.createdAt
             : data.created_at

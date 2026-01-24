@@ -45,6 +45,19 @@ export class User extends Model<User> {
   })
   declare password: string;
 
+  @Column({
+    type: DataType.STRING,
+    allowNull: true,
+  })
+  declare provider: string;
+
+  @Column({
+    field: 'provider_id',
+    type: DataType.STRING,
+    allowNull: true,
+  })
+  declare providerId: string;
+
   @CreatedAt
   @Column({
     field: 'created_at',

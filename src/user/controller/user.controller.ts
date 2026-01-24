@@ -13,6 +13,7 @@ import {
 import { ErrorMessageService } from '../../common/services/errormessage.service';
 
 import { UserRequestDto } from '../dto/userRequest.dto';
+import { UserOauthRequestDto } from '../dto/userOauthRequest.dto';
 import { UserService } from '../service/user.service';
 import { JwtAuthGuard } from 'src/JwtAuthGuard/jwt_auth.guard';
 import { Public } from 'src/JwtAuthGuard/public.decorator';
@@ -23,13 +24,11 @@ export class UserController {
   constructor(
     private readonly userService: UserService,
     private readonly errorMessageService: ErrorMessageService,
-  ) { }
+  ) {}
 
   @Public()
   @Post()
-  async createUser(
-    @Body() requestDto: UserRequestDto,
-  ): Promise<any> {
+  async createUser(@Body() requestDto: UserRequestDto): Promise<any> {
     try {
       const user = await this.userService.createUser(requestDto);
       return this.errorMessageService.success(
@@ -48,6 +47,22 @@ export class UserController {
   async login(@Body() body: { email: string; password: string }) {
     try {
       const result = await this.userService.login(body.email, body.password);
+      return this.errorMessageService.success(
+        result,
+        true,
+        'Login successful',
+        {},
+      );
+    } catch (error) {
+      throw this.errorMessageService.error(error);
+    }
+  }
+
+  @Public()
+  @Post('oauth')
+  async oauthLogin(@Body() body: UserOauthRequestDto) {
+    try {
+      const result = await this.userService.oauthLogin(body);
       return this.errorMessageService.success(
         result,
         true,
@@ -96,9 +111,7 @@ export class UserController {
 
   @Public()
   @Get('email/:email')
-  async getUserByEmail(
-    @Param('email') email: string,
-  ): Promise<any> {
+  async getUserByEmail(@Param('email') email: string): Promise<any> {
     try {
       const user = await this.userService.getUserByEmail(email);
       return this.errorMessageService.success(
@@ -114,9 +127,7 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @Get('search/by-name/:name')
-  async getUsersByName(
-    @Param('name') name: string,
-  ): Promise<any> {
+  async getUsersByName(@Param('name') name: string): Promise<any> {
     try {
       const users = await this.userService.getUsersByName(name);
       return this.errorMessageService.success(

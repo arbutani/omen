@@ -5,6 +5,8 @@ export declare class User extends Model<User> {
     mobile: string;
     email: string;
     password: string;
+    provider: string;
+    providerId: string;
     createdAt: Date;
     updatedAt: Date;
 }

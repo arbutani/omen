@@ -3,6 +3,8 @@ export declare class UserDto {
     name: string;
     mobile: string;
     email: string;
+    provider?: string;
+    providerId?: string;
     createdAt: string;
     updatedAt: string;
     constructor(data: any);
