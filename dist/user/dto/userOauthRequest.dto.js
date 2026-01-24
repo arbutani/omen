@@ -20,12 +20,12 @@ class UserOauthRequestDto {
 }
 exports.UserOauthRequestDto = UserOauthRequestDto;
 __decorate([
-    (0, class_validator_1.IsNotEmpty)({ message: 'Provider is required' }),
+    (0, class_validator_1.IsOptional)({ message: 'Provider is required' }),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UserOauthRequestDto.prototype, "provider", void 0);
 __decorate([
-    (0, class_validator_1.IsNotEmpty)({ message: 'Provider id is required' }),
+    (0, class_validator_1.IsOptional)({ message: 'Provider id is required' }),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UserOauthRequestDto.prototype, "providerId", void 0);
