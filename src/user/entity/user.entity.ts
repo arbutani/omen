@@ -58,6 +58,13 @@ export class User extends Model<User> {
   })
   declare providerId: string;
 
+  @Column({
+    type: DataType.BOOLEAN,
+    defaultValue: false,
+    field: 'is_email_verified',
+  })
+  isEmailVerified: boolean;
+
   @CreatedAt
   @Column({
     field: 'created_at',

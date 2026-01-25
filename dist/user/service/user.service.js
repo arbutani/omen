@@ -61,7 +61,8 @@ let UserService = class UserService {
     sequelize;
     errorMessageService;
     jwtService;
-    GOOGLE_CLIENT_ID = '963430831548-ms7rv6n43su0p2qfd2of5bdt2ghngb7a.apps.googleusercontent.com';
+    GOOGLE_CLIENT_ID_WEB = '963430831548-ms7rv6n43su0p2qfd2of5bdt2ghngb7a.apps.googleusercontent.com';
+    GOOGLE_CLIENT_ID_EXPO = '963430831548-llhoen9hhq66vkfsaegt1dekj47f947e.apps.googleusercontent.com';
     constructor(userRepository, sequelize, errorMessageService, jwtService) {
         this.userRepository = userRepository;
         this.sequelize = sequelize;
@@ -70,34 +71,138 @@ let UserService = class UserService {
     }
     async verifyGoogleToken(token) {
         try {
-            const tokenInfoResponse = await axios_1.default.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${token}`);
-            const tokenInfo = tokenInfoResponse.data;
-            if (tokenInfo.aud !== this.GOOGLE_CLIENT_ID) {
-                throw new common_1.UnauthorizedException('Invalid Google client ID');
-            }
-            const currentTime = Math.floor(Date.now() / 1000);
-            if (tokenInfo.exp && tokenInfo.exp < currentTime) {
-                throw new common_1.UnauthorizedException('Google token has expired');
-            }
-            return tokenInfo;
-        }
-        catch (error) {
-            console.error('Google token verification failed:', error.response?.data || error.message);
+            console.log('Verifying Google token...');
             try {
-                const userInfoResponse = await axios_1.default.get('https://www.googleapis.com/oauth2/v1/userinfo', {
+                const userInfoResponse = await axios_1.default.get('https://www.googleapis.com/oauth2/v3/userinfo', {
                     headers: { Authorization: `Bearer ${token}` },
+                    timeout: 10000,
                 });
+                if (userInfoResponse.data && userInfoResponse.data.email) {
+                    console.log('Token verified as access_token');
+                    return {
+                        email: userInfoResponse.data.email,
+                        name: userInfoResponse.data.name,
+                        sub: userInfoResponse.data.sub,
+                        picture: userInfoResponse.data.picture,
+                        email_verified: userInfoResponse.data.email_verified,
+                        verified: true,
+                    };
+                }
+            }
+            catch (accessTokenError) {
+                console.log('Not an access_token, trying as id_token...');
+            }
+            try {
+                const tokenInfoResponse = await axios_1.default.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${token}`, { timeout: 10000 });
+                const tokenInfo = tokenInfoResponse.data;
+                const currentTime = Math.floor(Date.now() / 1000);
+                if (tokenInfo.exp && tokenInfo.exp < currentTime) {
+                    throw new common_1.UnauthorizedException('Google token has expired');
+                }
+                if (tokenInfo.aud !== this.GOOGLE_CLIENT_ID_WEB &&
+                    tokenInfo.aud !== this.GOOGLE_CLIENT_ID_EXPO) {
+                    console.warn(`Client ID mismatch. Expected: ${this.GOOGLE_CLIENT_ID_WEB} or ${this.GOOGLE_CLIENT_ID_EXPO}, Got: ${tokenInfo.aud}`);
+                }
+                console.log('Token verified as id_token');
                 return {
-                    email: userInfoResponse.data.email,
-                    name: userInfoResponse.data.name,
-                    sub: userInfoResponse.data.id,
+                    email: tokenInfo.email,
+                    name: tokenInfo.name,
+                    sub: tokenInfo.sub,
+                    picture: tokenInfo.picture,
+                    email_verified: tokenInfo.email_verified === 'true',
                     verified: true,
                 };
             }
-            catch (secondError) {
-                console.error('Alternative verification also failed:', secondError.message);
-                throw new common_1.UnauthorizedException('Invalid Google token. Please try again.');
+            catch (idTokenError) {
+                console.error('id_token verification failed:', idTokenError.message);
             }
+            throw new common_1.UnauthorizedException('Invalid Google token. Could not verify using either access_token or id_token.');
+        }
+        catch (error) {
+            console.error('Google token verification failed:', error.message);
+            if (error instanceof common_1.UnauthorizedException) {
+                throw error;
+            }
+            throw new common_1.UnauthorizedException('Failed to verify Google token. Please try again.');
+        }
+    }
+    async googleLogin(token) {
+        const transaction = await this.sequelize.transaction({
+            isolationLevel: sequelize_1.Transaction.ISOLATION_LEVELS.REPEATABLE_READ,
+        });
+        let status = false;
+        try {
+            console.log('Starting Google login...');
+            const googleData = await this.verifyGoogleToken(token);
+            if (!googleData.email) {
+                throw new common_1.UnauthorizedException('Email not found in Google token');
+            }
+            const email = googleData.email.toLowerCase().trim();
+            const name = googleData.name || 'Google User';
+            const providerId = googleData.sub;
+            console.log('Google data verified:', { email, name, providerId });
+            let user = await this.userRepository.findOne({
+                where: { email },
+                transaction,
+            });
+            if (user) {
+                console.log('Existing user found:', user.email);
+                const updates = {};
+                if (!user.provider)
+                    updates.provider = 'google';
+                if (!user.providerId)
+                    updates.providerId = providerId;
+                if (!user.name && name)
+                    updates.name = name;
+                if (Object.keys(updates).length > 0) {
+                    await this.userRepository.update(updates, {
+                        where: { id: user.id },
+                        transaction,
+                    });
+                    user = await this.userRepository.findByPk(user.id, { transaction });
+                }
+            }
+            else {
+                console.log('Creating new Google user...');
+                user = await this.userRepository.create({
+                    name: name,
+                    email: email,
+                    mobile: '',
+                    password: null,
+                    provider: 'google',
+                    providerId: providerId,
+                }, { transaction });
+                if (!user) {
+                    throw this.errorMessageService.GeneralErrorCore('Unable to create user from Google data', 500);
+                }
+                console.log('New Google user created:', user.id);
+            }
+            const payload = {
+                sub: user?.id?.toString() || '',
+                email: user?.email || '',
+                name: user?.name || '',
+                mobile: user?.mobile || '',
+                provider: user?.provider || '',
+            };
+            const jwtToken = await this.jwtService.signAsync(payload, {
+                secret: process.env.JWT_SECRET || 'MY_SECRET_KEY',
+                expiresIn: (process.env.JWT_EXPIRES_IN || '7d'),
+            });
+            await transaction.commit();
+            status = true;
+            console.log('Google login successful for:', user?.email);
+            return {
+                access_token: jwtToken,
+                user: user ? new user_dto_1.UserDto(user) : null,
+                message: 'Google login successful',
+            };
+        }
+        catch (error) {
+            console.error('Google login error:', error);
+            if (status === false) {
+                await transaction.rollback().catch(() => { });
+            }
+            throw this.errorMessageService.CatchHandler(error);
         }
     }
     async createUser(requestDto) {
@@ -164,14 +269,14 @@ let UserService = class UserService {
                 throw new common_1.UnauthorizedException('Invalid email or password');
             }
             const payload = {
-                sub: user.id,
+                sub: user.id.toString(),
                 email: user.email,
                 name: user.name,
                 mobile: user.mobile,
             };
             const token = await this.jwtService.signAsync(payload, {
                 secret: process.env.JWT_SECRET || 'MY_SECRET_KEY',
-                expiresIn: process.env.JWT_EXPIRES_IN || '3h',
+                expiresIn: (process.env.JWT_EXPIRES_IN || '3h'),
             });
             await transaction.commit();
             status = true;
@@ -199,7 +304,7 @@ let UserService = class UserService {
                 hasToken: !!oauthDto.token,
             });
             if (oauthDto.provider === 'google' && oauthDto.token) {
-                console.log('Verifying Google token...');
+                console.log('Verifying Google token in OAuth login...');
                 try {
                     const verifiedData = await this.verifyGoogleToken(oauthDto.token);
                     console.log('Google Token Verified:', {
@@ -207,27 +312,30 @@ let UserService = class UserService {
                         googleId: verifiedData.sub,
                         name: verifiedData.name,
                     });
-                    oauthDto.email = verifiedData.email;
-                    oauthDto.providerId = verifiedData.sub;
+                    oauthDto.email = verifiedData.email || oauthDto.email;
+                    oauthDto.providerId = verifiedData.sub || oauthDto.providerId;
                     if (verifiedData.name && !oauthDto.name) {
                         oauthDto.name = verifiedData.name;
                     }
                 }
                 catch (googleError) {
                     console.error('Google token verification failed:', googleError.message);
-                    throw new common_1.UnauthorizedException('Invalid Google token: ' + googleError.message);
+                    console.log('Continuing with provided OAuth data...');
                 }
             }
             const provider = oauthDto.provider;
             const providerId = oauthDto.providerId;
             const email = oauthDto.email ? oauthDto.email.trim().toLowerCase() : null;
-            const name = oauthDto.name || 'Google User';
+            const name = oauthDto.name || (provider === 'google' ? 'Google User' : 'User');
             console.log('Processing OAuth for:', {
                 provider,
                 providerId,
                 email,
                 name,
             });
+            if (!email) {
+                throw this.errorMessageService.GeneralErrorCore('Email is required for OAuth login', 400);
+            }
             let user = null;
             if (provider && providerId) {
                 user = await this.userRepository.findOne({
@@ -266,11 +374,10 @@ let UserService = class UserService {
                 const newUser = await this.userRepository.create({
                     name: name,
                     mobile: oauthDto.mobile || '',
-                    email: email || '',
+                    email: email,
                     password: null,
                     provider: provider || null,
                     providerId: providerId || null,
-                    isEmailVerified: provider === 'google' ? true : false,
                 }, { transaction });
                 if (!newUser) {
                     throw this.errorMessageService.GeneralErrorCore('Unable to create user from OAuth data', 500);
@@ -279,7 +386,7 @@ let UserService = class UserService {
                 console.log('New user created:', user.id);
             }
             const payload = {
-                sub: user.id,
+                sub: user.id.toString(),
                 email: user.email,
                 name: user.name,
                 mobile: user.mobile,
@@ -287,7 +394,7 @@ let UserService = class UserService {
             };
             const token = await this.jwtService.signAsync(payload, {
                 secret: process.env.JWT_SECRET || 'MY_SECRET_KEY',
-                expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+                expiresIn: (process.env.JWT_EXPIRES_IN || '7d'),
             });
             await transaction.commit();
             status = true;

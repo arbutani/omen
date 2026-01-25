@@ -74,6 +74,53 @@ export class UserController {
     }
   }
 
+  // New Google login endpoint
+  @Public()
+  @Post('google-login')
+  async googleLogin(@Body() body: { token: string }) {
+    try {
+      console.log('Google login endpoint called');
+
+      if (!body.token || body.token.trim() === '') {
+        return this.errorMessageService.error(
+          new Error('Google token is required'),
+        );
+      }
+
+      const result = await this.userService.googleLogin(body.token);
+      return this.errorMessageService.success(
+        result,
+        true,
+        'Google login successful',
+        {},
+      );
+    } catch (error) {
+      console.error('Google login error in controller:', error);
+      throw this.errorMessageService.error(error);
+    }
+  }
+
+  // Google token verification endpoint
+  @Public()
+  @Post('verify-google-token')
+  async verifyGoogleToken(@Body() body: { token: string }) {
+    try {
+      if (!body.token || body.token.trim() === '') {
+        return this.errorMessageService.error(new Error('Token is required'));
+      }
+
+      const verifiedData = await this.userService.verifyGoogleToken(body.token);
+      return this.errorMessageService.success(
+        verifiedData,
+        true,
+        'Token verified successfully',
+        {},
+      );
+    } catch (error) {
+      throw this.errorMessageService.error(error);
+    }
+  }
+
   @UseGuards(JwtAuthGuard)
   @Put(':id')
   async updateUser(
@@ -171,10 +218,16 @@ export class UserController {
       if (page || limit || search) {
         const pageNum = page ? Number(page) : 1;
         const limitNum = limit ? Number(limit) : 10;
-        return await this.userService.getUsersWithPagination(
+        const result = await this.userService.getUsersWithPagination(
           pageNum,
           limitNum,
           search,
+        );
+        return this.errorMessageService.success(
+          result.users,
+          true,
+          'Users retrieved successfully',
+          result.pagination,
         );
       } else {
         const users = await this.userService.getAllUsers();

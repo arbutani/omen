@@ -7,6 +7,7 @@ export declare class User extends Model<User> {
     password: string;
     provider: string;
     providerId: string;
+    isEmailVerified: boolean;
     createdAt: Date;
     updatedAt: Date;
 }

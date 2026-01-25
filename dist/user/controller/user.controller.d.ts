@@ -23,6 +23,22 @@ export declare class UserController {
         data: any;
         error?: string;
     }>;
+    googleLogin(body: {
+        token: string;
+    }): Promise<import("@nestjs/common").HttpException | {
+        status: boolean;
+        message: string;
+        data: any;
+        error?: string;
+    }>;
+    verifyGoogleToken(body: {
+        token: string;
+    }): Promise<import("@nestjs/common").HttpException | {
+        status: boolean;
+        message: string;
+        data: any;
+        error?: string;
+    }>;
     updateUser(id: string, requestDto: UserPutRequestDto): Promise<any>;
     getUser(id: string): Promise<any>;
     getUserByEmail(email: string): Promise<any>;

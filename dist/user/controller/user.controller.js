@@ -55,6 +55,32 @@ let UserController = class UserController {
             throw this.errorMessageService.error(error);
         }
     }
+    async googleLogin(body) {
+        try {
+            console.log('Google login endpoint called');
+            if (!body.token || body.token.trim() === '') {
+                return this.errorMessageService.error(new Error('Google token is required'));
+            }
+            const result = await this.userService.googleLogin(body.token);
+            return this.errorMessageService.success(result, true, 'Google login successful', {});
+        }
+        catch (error) {
+            console.error('Google login error in controller:', error);
+            throw this.errorMessageService.error(error);
+        }
+    }
+    async verifyGoogleToken(body) {
+        try {
+            if (!body.token || body.token.trim() === '') {
+                return this.errorMessageService.error(new Error('Token is required'));
+            }
+            const verifiedData = await this.userService.verifyGoogleToken(body.token);
+            return this.errorMessageService.success(verifiedData, true, 'Token verified successfully', {});
+        }
+        catch (error) {
+            throw this.errorMessageService.error(error);
+        }
+    }
     async updateUser(id, requestDto) {
         try {
             const user = await this.userService.updateUser(id, requestDto);
@@ -105,7 +131,8 @@ let UserController = class UserController {
             if (page || limit || search) {
                 const pageNum = page ? Number(page) : 1;
                 const limitNum = limit ? Number(limit) : 10;
-                return await this.userService.getUsersWithPagination(pageNum, limitNum, search);
+                const result = await this.userService.getUsersWithPagination(pageNum, limitNum, search);
+                return this.errorMessageService.success(result.users, true, 'Users retrieved successfully', result.pagination);
             }
             else {
                 const users = await this.userService.getAllUsers();
@@ -160,6 +187,22 @@ __decorate([
     __metadata("design:paramtypes", [userOauthRequest_dto_1.UserOauthRequestDto]),
     __metadata("design:returntype", Promise)
 ], UserController.prototype, "oauthLogin", null);
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Post)('google-login'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], UserController.prototype, "googleLogin", null);
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Post)('verify-google-token'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], UserController.prototype, "verifyGoogleToken", null);
 __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Put)(':id'),
